@@ -1,0 +1,5 @@
+EMAIL = "####"
+API_TOKEN = "####"
+PROXY = "####"
+BASE_URL = "https://team-flow.atlassian.net"
+EXPORT_FOLDER = "exports"
