@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head><title>Jira Exporter</title></head>
+<body>
+<h1>Jira Exporter</h1>
+<button onclick="run()">Export</button>
+<script>
+async function run(){
+const r = await fetch('/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:['AI']})});
+const b = await r.blob();
+const a = document.createElement('a');
+a.href=URL.createObjectURL(b);
+a.download='export.zip';a.click();
+}
+</script>
+</body>
+</html>
