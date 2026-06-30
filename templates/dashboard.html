@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+    <title>Jira Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<h2>Jira Enterprise Dashboard</h2>
+
+<select id="projects" multiple></select>
+<button onclick="loadDashboard()">Load</button>
+
+<canvas id="chart"></canvas>
+
+<script>
+
+async function loadProjects(){
+    const res = await fetch('/projects');
+    const data = await res.json();
+
+    const sel = document.getElementById('projects');
+    data.forEach(p=>{
+        const opt=document.createElement('option');
+        opt.value=p.key;
+        opt.innerText=p.name;
+        sel.appendChild(opt);
+    });
+}
+
+async function loadDashboard(){
+
+    const sel=document.getElementById('projects');
+    const projects=Array.from(sel.selectedOptions).map(o=>o.value);
+
+    const res=await fetch('/api/dashboard',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({projects})
+    });
+
+    const data=await res.json();
+
+    const labels=data.map(d=>d.project);
+    const values=data.map(d=>d.total_time_hours);
+
+    new Chart(document.getElementById('chart'),{
+        type:'bar',
+        data:{
+            labels:labels,
+            datasets:[{
+                label:'Total Hours',
+                data:values
+            }]
+        }
+    });
+}
+
+loadProjects();
+</script>
+
+</body>
+</html>
