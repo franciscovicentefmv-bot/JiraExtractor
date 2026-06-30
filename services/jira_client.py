@@ -1,7 +1,6 @@
 import subprocess, json, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from config import EMAIL, API_TOKEN, PROXY, BASE_URL
-from services.sync_store import get_last_sync, update_last_sync
 
 class JiraClient:
     def _curl(self, endpoint):
@@ -24,25 +23,12 @@ class JiraClient:
         return self.request('/rest/api/2/project')
 
     def get_project_issues(self, project):
-        """
-        Optimized Jira fetch:
-        - Uses incremental sync when possible
-        - Reduces full re-fetching of issues
-        """
         start = 0
         out = []
 
-        last_sync = get_last_sync(project)
-
-        if last_sync:
-            # Jira JQL does not reliably support epoch -> use relative window
-            jql = f'project={project} AND updated >= -7d'
-        else:
-            jql = f'project={project}'
-
         while True:
             d = self.request(
-                f'/rest/api/2/search?jql={jql}&startAt={start}&maxResults=100'
+                f'/rest/api/2/search?jql=project={project}&startAt={start}&maxResults=100'
             )
 
             out.extend(d.get('issues', []))
@@ -59,13 +45,26 @@ class JiraClient:
     def download_project(self, project):
         issues = self.get_project_issues(project)
 
-        res = []
-        with ThreadPoolExecutor(max_workers=10) as ex:
-            fut = [ex.submit(self.get_issue, i['key']) for i in issues]
-            for f in as_completed(fut):
-                res.append(f.result())
+        # deduplicate keys to avoid redundant API calls
+        seen = set()
+        unique = []
 
-        # mark sync complete
-        update_last_sync(project)
+        for i in issues:
+            key = i.get('key')
+            if key and key not in seen:
+                seen.add(key)
+                unique.append(i)
+
+        res = []
+
+        # safer concurrency (reduce Jira API pressure)
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            fut = [ex.submit(self.get_issue, i['key']) for i in unique]
+
+            for f in as_completed(fut):
+                try:
+                    res.append(f.result())
+                except Exception:
+                    pass
 
         return res
