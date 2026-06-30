@@ -4,6 +4,7 @@ from services.calculations import process_project
 from services.exporter import create_excel_files
 from services.zipper import create_zip
 from services.worker import run_job, get_job
+from services.dashboard import build_dashboard
 
 app = Flask(__name__)
 client = JiraClient()
@@ -36,6 +37,18 @@ def download(job_id):
         return "Not ready", 400
 
     return send_file(job["result"], as_attachment=True)
+
+# ----------------------------
+# DASHBOARD API
+# ----------------------------
+@app.route("/api/dashboard", methods=["POST"])
+def dashboard_api():
+    data = request.get_json()
+    projects = data.get("projects", [])
+
+    result = build_dashboard(client, projects)
+
+    return jsonify(result)
 
 # ----------------------------
 # PIPELINE
